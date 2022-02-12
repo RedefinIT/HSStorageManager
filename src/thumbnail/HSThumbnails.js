@@ -4,14 +4,15 @@
 
 
 
-var fs = require('fs');
-var sharp = require('sharp');
-var Map = require('hashtable');
-var pdfjslib = require('pdfjs-dist');
+const fs = require('fs');
+const sharp = require('sharp');
+const Map = require('simple-hashtable');
+// const pdfjslib = require('pdfjs-dist' );
+const pdfjslib = require('pdfjs-dist/legacy/build/pdf');
 
-var storagemanager = require('../HStorageManager');
+// const storagemanager = require('../HStorageManager');
 
-var hashtable_thumbnails = new Map();
+let hashtable_thumbnails = new Map();
 
 
 var HSThumbnails = {
@@ -19,18 +20,17 @@ var HSThumbnails = {
   getThumbnail: function(mimetype, filestream, filename){
 
     // if(mimetype == "image/jpeg") {
-    if(mimetype.indexOf("image/") == 0) {
+    if(mimetype.indexOf("image/") === 0) {
       const thumbnailgenerator = sharp()
         .resize(200);
 
       return filestream.pipe(thumbnailgenerator);
     }
-    else if (mimetype == "application/pdf") {
+    else if (mimetype === "application/pdf") {
 
 
       // Temporary code before I could figure out creating thumbnail from filestream for PDF
-      var filestream1 = fs.createReadStream("/home/govind/HomeServer/LOCALSDD/system/DigitalLibrary.png");
-      return filestream1;
+      return fs.createReadStream("/home/govind/HomeServer/LOCALSDD/system/DigitalLibrary.png");
 
       // return HSThumbnails.generatePDFThumbnail(filestream);
     }

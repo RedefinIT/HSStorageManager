@@ -4,10 +4,10 @@
 
 
 var _ = require('lodash');
-const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
-var time = require('time')(Date);
-var fs = require('fs');
-
+// const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
+// import { v4 as uuidv4 } from 'uuid'; // Ramdon UUID generator
+let fs = require('fs');
+const { uuid } = require('uuidv4');
 var esIndicesConfig = require('../elasticsearch/esIndicesConfig');
 var esclient = require('../elasticsearch/esclient');
 var localOSD = require('./osd/localstorage');
@@ -18,7 +18,7 @@ var hsthumbnails = require('../thumbnail/HSThumbnails');
 // Use Busboy to parse form-data from the uploaded file content.
 var Busboy = require('busboy');
 
-var Map = require('hashtable');
+var Map = require('simple-hashtable');
 
 var hashtable_buckets = new Map();
 var hashtable_OSDs = new Map();
@@ -119,13 +119,10 @@ var StorageMain = {
     var containers = JSON.parse(JSON.stringify(hashtable_buckets));
     var devices = JSON.parse(JSON.stringify(hashtable_OSDs));
 
-    var settings = {
+    return {
       "containers": containers,
       "devices": devices
     };
-
-    return settings;
-
 
   },
 
@@ -152,7 +149,8 @@ var StorageMain = {
     // console.log("createNewFile number of osds in bucket: ", bucket.osds.length);
 
     //  First generate UUID for new file's ObjID
-    let objID = uuidv4();
+    let objID = uuid();
+    console.log("objID: ", objID);
     // var filedata = {id: objID, size: 0, status: 'staging', container: 'staging'};
     filedata['id'] = objID;
     filedata['size'] = 0;
@@ -162,7 +160,7 @@ var StorageMain = {
 
     // import date of the file
     var d = new Date();
-    d.setTimezone('UTC');
+    // d.setTimezone('UTC');
     // get current time in ISO8601 format which supports lexicographical sorting
     // Ref: https://en.wikipedia.org/wiki/ISO_8601
     filedata.import_date = d.toISOString();
@@ -186,17 +184,17 @@ var StorageMain = {
 
     console.log("OSD picked: ", bucketObj.osds[osdpicked]);
 
-    var osd = hashtable_OSDs.get( bucketObj.osds[osdpicked]);
+    const osd = hashtable_OSDs.get( bucketObj.osds[osdpicked]);
 
     console.log("osd: ", osd);
 
-    if(osd['device-type'] == 'localSDD') {
+    if(osd['device-type'] === 'localSDD') {
 
       // StorageMain.createFile_localSDD(osd, filedata, callback);
       localSSD.createFile(osd, bucketObj, filedata, callback);
 
     }
-    else if (osd['device-type'] == 'localHDD') {
+    else if (osd['device-type'] === 'localHDD') {
 
       localOSD.createFile(osd, bucketObj, filedata, callback);
 
@@ -236,7 +234,7 @@ var StorageMain = {
 
       console.log("getFile: thumbnail cache entry for objID: ", thumbnailmeta);
 
-      if(thumbnailmeta != undefined) {
+      if(thumbnailmeta !== undefined) {
         // Thumbnail found in the cache
         console.log("getFile: Thumbnail found in the cache!!!");
         var filestream = StorageMain.getFileFromPath(thumbnailmeta['path']);
@@ -265,14 +263,11 @@ var StorageMain = {
             result['size'] = resp['size'];
             result['mimetype'] = "image/jpeg";
 
-
             hsthumbnails.addthumbnail(objID, result);
 
             var filestream1 = StorageMain.getFileFromPath(result['path']);
 
             callback(undefined, filestream1 , result);
-
-
           });
         });
 
@@ -370,7 +365,7 @@ var StorageMain = {
     let bucketObj = hashtable_buckets.get(staging_bucket);
 
 
-    var busboy = new Busboy({headers: req.headers});
+    const busboy = new Busboy({headers: req.headers});
     var returnfiledata = {};
     var fieldData = context;
 
@@ -738,9 +733,9 @@ var StorageMain = {
       },
     
   getIndexForBucket: function(bucket) {
-    if(bucket == "staging") {
+    if(bucket === "staging") {
       return "sm_objectstoreindex_staging";
-    } else if(bucket == "media1"){
+    } else if(bucket === "media1"){
       return "sm_objectstoreindex_media1";
 
     }

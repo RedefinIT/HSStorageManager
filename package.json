@@ -2,16 +2,14 @@
   "name": "HSStorageManager",
   "version": "0.0.1",
   "dependencies": {
-    "body-parser": "^1.16.1",
+    "body-parser": "^1.19.1",
     "busboy": "^0.2.14",
-    "elasticsearch": "^12.1.3",
-    "express": "^4.14.1",
-    "hashtable": "^2.0.2",
-    "lwip": "0.0.9",
-    "mkdirp": "^0.5.1",
-    "pdfjs-dist": "^2.0.489",
-    "sharp": "^0.17.2",
-    "time": "^0.12.0",
-    "uuid": "^3.0.1"
+    "elasticsearch": "^16.7.2",
+    "express": "^4.17.2",
+    "mkdirp": "^1.0.4",
+    "pdfjs-dist": "^2.12.313",
+    "sharp": "^0.30.1",
+    "simple-hashtable": "^1.0.1",
+    "uuidv4": "^6.2.12"
   }
 }

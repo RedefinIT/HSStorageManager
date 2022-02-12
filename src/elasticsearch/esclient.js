@@ -13,7 +13,7 @@ var _ = require( 'lodash' );
 var esPort = process.env.ES_PORT ? process.env.ES_PORT : '9200';
 const MAX_RESULT_WINDOW = 10000;
 
-var _client = elasticsearch.Client({
+const es_client = elasticsearch.Client({
   host: 'localhost:' + esPort,
   log: 'info'
 });
@@ -29,7 +29,7 @@ exports.addItem = addItem;
 exports.bulkupdate = bulkupdate;
 
 function createIndex(indexDef) {
-  _client.create(indexDef, function(error, response) {
+  es_client.create(indexDef, function(error, response) {
     // ...
   });
 }
@@ -38,12 +38,12 @@ function initIndices (allIndices, callback) {
 
   let promises = _.map(allIndices, (indexSetting) => {
 
-    return _client.indices.exists({
+    return es_client.indices.exists({
       index: indexSetting.index
     }).then((exists) => {
       if (!exists) {
         console.log("initIndices creating the index: ", indexSetting);
-        return _client.indices.create(indexSetting);
+        return es_client.indices.create(indexSetting);
       }
       console.log("returning undefined");
       return undefined;
@@ -59,7 +59,7 @@ function initIndices (allIndices, callback) {
       index: "sm_oscontainersindex"
 
     };
-    _client.search(param, (err, resp) => {
+    es_client.search(param, (err, resp) => {
       if(err) {
 
       } else if(!resp) {
@@ -70,14 +70,14 @@ function initIndices (allIndices, callback) {
         _.map(resp.hits.hits, (bucket) => {
           console.log("bucket: ", bucket._source);
 
-          return _client.indices.exists({
+          return es_client.indices.exists({
             index: "sm_osdindex" + bucket._source.id,
           }).then((exists) => {
             if (!exists) {
               console.log("initIndices creating the index: ", "sm_objectstoreindex_" + bucket._source.id);
               var indexconfig = esIndicesConfig.storagemanagerIndices.sm_objectstoreindex;
               indexconfig.index = "sm_objectstoreindex_" + bucket._source.id;
-              return _client.indices.create(indexconfig);
+              return es_client.indices.create(indexconfig);
             }
             console.log("returning undefined");
             return undefined;
@@ -106,7 +106,7 @@ function getItem(index, id, query, callback) {
 
   console.log("getItem: param@#@@#@#@#@#@#@#@#: ", param);
 
-  _client.search(param, (err, resp) => {
+  es_client.search(param, (err, resp) => {
     if(err) {
       console.log("some error with the query: ", err);
       callback(err);
@@ -167,7 +167,7 @@ function getItems( index, params, query, callback1) {
 
   console.log("getItems searchrequest: ", JSON.stringify(searchrequest));
 
-  return _client.search( searchrequest,
+  return es_client.search( searchrequest,
     ( err, resp ) => {
       if ( err ) {
         console.log("getItems: err: ",err);
@@ -217,7 +217,7 @@ function getFilterItems(index, field1, callback1) {
     }
   };
 
-  _client.search(data, function(err, resp) {
+  es_client.search(data, function(err, resp) {
 
     if (err == null) {
       // RESULT IS LIKE [ { key: 'critical', doc_count: 33 },   { key: 'ok', doc_count: 2 } ]
@@ -245,14 +245,16 @@ function getFilterItems(index, field1, callback1) {
 function addItem(index, data, id, callback1) {
   console.log("addItem");
 
-  var indexDocument = {
+  let indexDocument = {
     index: index,
     type: index,
     id: id,
     body: data
   };
 
-  _client.index(indexDocument, function (error, response) {
+  console.log("indexDocument: ", indexDocument);
+
+  es_client.index(indexDocument, function (error, response) {
     console.log("addItem: error", error);
     console.log("addItem: response", response);
     callback1(error, response);
@@ -271,7 +273,7 @@ function stageNewFiles( id, filedata, callback1) {
 
   console.log("esclient::stageNewFiles data: ", data);
 
-  _client.index(data, callback1);
+  es_client.index(data, callback1);
 }
 
 
@@ -286,7 +288,7 @@ function deleteItem(index, id, callback1) {
 
   if (id) {
     console.log("deleteItem: before:");
-    _client.delete(indexDocument, function (error, response) {
+    es_client.delete(indexDocument, function (error, response) {
       console.log("addItem: error", error);
       console.log("addItem: response", response);
       callback1(error, response);
@@ -298,7 +300,7 @@ function deleteItem(index, id, callback1) {
 function bulkupdate(arrUpdateItems, callback) {
 
   // the bulk call option "refresh" is required to ensure query right after the update gets the updated data
-  _client.bulk({'body': arrUpdateItems, 'refresh': "true"}, function(err, resp){
+  es_client.bulk({'body': arrUpdateItems, 'refresh': "true"}, function(err, resp){
 
     callback(err, resp);
   });
@@ -311,5 +313,5 @@ function bulkupdate(arrUpdateItems, callback) {
  * @param void
  */
 function getESClient() {
-  return _client;
+  return es_client;
 }

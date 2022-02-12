@@ -12,7 +12,6 @@
 var express = require("express");
 var bodyParser = require('body-parser');
 var storagemanager = require('./HStorageManager');
-var fs = require('fs');
 
 var app = express();
 
@@ -52,7 +51,7 @@ app.get('/rest/file/:bucket/:file', function(req, resp){
 
     console.log("GET /rest/:bucket/:file filemeta: ", filemeta['path']);
 
-    if(filestream != undefined) {
+    if(filestream !== undefined) {
       resp.setHeader('Content-Type', filemeta.mimetype);
       resp.setHeader('Content-Length', filemeta.size);
       filestream.pipe(resp);
@@ -76,7 +75,7 @@ app.get('/rest/meta/:bucket/:file', function(req, resp){
   var params = req.params;
   
   storagemanager.getObjectMeta(params.bucket, params.file, function(err, filemeta){
-    console.log("GET /rest/meta/:bucket/:file filemeta: ". filemeta);
+    console.log("GET /rest/meta/:bucket/:file filemeta: ", filemeta);
     resp.setHeader('Content-Type', "application/json");    
     resp.json(filemeta);
   });
