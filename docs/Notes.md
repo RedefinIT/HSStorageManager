@@ -23,15 +23,19 @@ _Size of L1-Repl-Container = L1-Container = Size of SSD_
 
 
 ## OSD - Object Storage Device
-It is physical storage drive.
+OSD can be a physical storage drive, cloud storage drive or network attached storage (NAS).
 
 ### OSD Types
+OSD types specify if the OSD is local attached hard disk (HDD), SSD, NVMe, cloud storage,
+external USB or network attached storage.
 
+
+Types:
 - localSDD - For file cache and thumbnails
 - localHDD - For Tier-1 file storage
 - cloud - For tier-2 user files
 - USB-mass-storage - Backup or tier-2 user files
--  nfs - For tier-3 user contentm 
+-  nfs - Network attached storage.
 
 
 OSDs are defined in `configuration/objectstoredevices.json`
@@ -50,6 +54,12 @@ Typical OSD data:
 ```
 
 ## Buckets
+Buckets are storage containers. Storage policies can be applied at bucket level.
+Also the files replication is performed at bucket level.
+Buckets are created for category of files like media, docs etc.
+Buckets are also created for system usage such as staging, thumbnails, cache etc.
+OSD (physical storage drive) can have multiple containers.
+
 The buckets are defined in `config/objectstorecontainers.json`
 
 Each bucket definition looks like this:
@@ -69,10 +79,12 @@ Each bucket definition looks like this:
 
 Each bucket can be associate with multiple OSDs.
 The bucket name is used in the HTTPS path of the file like:
-
 ```https://servername/bucket1/fileObjId1```
+Every file can be accessed using the combination of 'bucket' and file 'objID' which is usually file name or GUID.
 
 ### Buckets list
+The following buckets (storage containers) are precreated in the storage server for HomeServer.
+
 - staging - Bucket for staging newly added file
 - system - For storing system files
 - system-cach - For caching system files
