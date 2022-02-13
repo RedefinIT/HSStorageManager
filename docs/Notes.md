@@ -12,16 +12,14 @@ The redundant copy is stored is a low cost drive unlike RAID which requires simi
 
 ![Storage Architecture](./StorageStorageArchitecture.png)
 
-
 ### Storage Tiers:
-- Tier-0: Used for cache. Has containers for thumbnails, staging for imported files and file cache. 
+- Tier-0: Used for cache. Has containers for thumbnails, staging for imported files and file cache.
 - Tier-1: Primary storage tier. Redundant copy of all files in this tier are stored in lower cost Tier-2. Uses entire capacity of the drive. Has 1 or more SSD drives. 
 - Tier-2: Secondary storage tier. Requires 2 or more drives in this tier. Has following containers:  
     - L1-Repl-Container which stores redundant copy of all files from L1-Container.   
     - L2-Container is low cost secondary storage for files and keeps redundant copy of all files in another HDD drive.  
 
 _Size of L1-Repl-Container = L1-Container = Size of SSD_
-
 
 
 ## OSD - Object Storage Device
