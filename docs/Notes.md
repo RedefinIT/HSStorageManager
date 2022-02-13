@@ -10,8 +10,7 @@ disaster can be challenging to the end user.
 File replication ensures fault tolerance of one drive failure. 
 The redundant copy is stored is a low cost drive unlike RAID which requires similar type drive. 
 
-![Storage Architecture]( "Storage Architecture" | width="100")
-<img src=./StorageArchitecture.png width=50>
+<img src=./StorageArchitecture.png width=250>
 
 ### Storage Tiers:
 - Tier-0: Used for cache. Has containers for thumbnails, staging for imported files and file cache.
