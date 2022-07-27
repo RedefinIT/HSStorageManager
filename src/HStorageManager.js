@@ -4,9 +4,12 @@
 
 
 var _ = require('lodash');
+<<<<<<< HEAD:HStorageManager.js
 // const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
 // var time = require('time')(Date);
 var fs = require('fs');
+=======
+>>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/HStorageManager.js
 
 var esIndicesConfig = require('./elasticsearch/esIndicesConfig');
 var esclient = require('./elasticsearch/esclient');
@@ -17,17 +20,18 @@ var hsthumbnails = require('./thumbnail/HSThumbnails');
 // Use Busboy to parse form-data from the uploaded file content.
 var Busboy = require('busboy');
 
+<<<<<<< HEAD:HStorageManager.js
 // var Map = require('hashtable');
 var Map = require('simple-hashtable');
 
+=======
+>>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/HStorageManager.js
 var staging_bucket = "staging";
 
 var HStorageManager = {
 
   init: function(){
-
     storagemain.init();
-
   },
 
   getSettings: function(){
@@ -35,16 +39,12 @@ var HStorageManager = {
   },
 
   getObjectMeta: function(bucket, fileID, callback) {
-
     storagemain.getObjectMeta(bucket, fileID, callback);
-
   },
 
 
   getFile: function(bucket, objID, query, callback) {
-
     storagemain.getFile(bucket, objID, query, callback);
-
   },
 
 
@@ -52,8 +52,6 @@ var HStorageManager = {
   // This function handles file upload requests from web browser clients
   addFile_Multipart: function (req, res) {
     console.log("addFile_Miltipart: ");
-
-
 
     var busboy = new Busboy({headers: req.headers});
     var returnfiledata = {};
@@ -70,7 +68,6 @@ var HStorageManager = {
         filedata.params = {};
 
         file.pipe(writerStream);
-
         file.on('data', function(data) {
           console.log('File [' + filedata.id + '] got ' + data.length + ' bytes');
           filedata.size += data.length;
@@ -101,8 +98,6 @@ var HStorageManager = {
       // writerStream.end();
       res.writeHead(303, { Connection: 'close', FileData : {returnfiledata} });
       res.end();
-
-
     });
 
     busboy.on('error', function() {
@@ -113,7 +108,6 @@ var HStorageManager = {
     });
 
     req.pipe(busboy);
-
   },
 
   // This function handles fileupload requests made using rest calls
@@ -127,11 +121,9 @@ var HStorageManager = {
     storagemain.createNewFile(staging_bucket, JSON.parse(req.headers['metadata']), function(writerStream, filedata){
 
       req.on('data', function(chunk) {
-
         console.log("^^^^^^^^^^^^^^^^^^^^^^^^^^");
         writerStream.write(chunk);
         filesize += chunk.length;
-
         console.log("#########Size so far is: ", filesize);
       }).on('end', function() {
         console.log("Ended................");
@@ -144,13 +136,9 @@ var HStorageManager = {
           console.log("addFile_RestCall: addNewFileIndex: ", filedata);
           res.json({FileID : filedata.id });
           res.end();
-
         });
-
       });
     });
-
-
   },
 
   /**
@@ -172,9 +160,7 @@ var HStorageManager = {
     else {
       storagemain.addFile_RestCall(req, res, context);
     }
-
   },
-
 
   _mergeMetaData: function (medatada1, metadata2) {
 
@@ -187,33 +173,21 @@ var HStorageManager = {
   },
 
   getobjects: function(bucket, query, callback) {
-
     storagemain.getobjects(bucket, query, callback);
-
   },
 
   bulkupdate: function(arrUpdateItems, callback) {
-
     storagemain.bulkupdate(arrUpdateItems, callback);
-
   },
 
   bulkmove: function(arrUpdateItems, callback) {
-
     storagemain.bulkmove(arrUpdateItems, callback);
-
   },
 
   // All the items will be moved from same source to single target
   bulkmove1: function(arrUpdateItems, sourcecontainer, targetcontainer, callback) {
-
     storagemain.bulkmove1(arrUpdateItems, sourcecontainer, targetcontainer, callback);
-    
   },
-    
-
-
-
 };
 
 module.exports = HStorageManager;

@@ -3,6 +3,7 @@
  */
 
 
+<<<<<<< HEAD:storage/storagemain.js
 const _ = require('lodash');
 const uuidv4 = require('uuid'); // Ramdon UUID generator
 // const time = require('time')(Date);
@@ -12,13 +13,28 @@ const esIndicesConfig = require('../elasticsearch/esIndicesConfig');
 const esclient = require('../elasticsearch/esclient');
 const localOSD = require('./osd/localstorage');
 const localSSD = require('./osd/localSDD');
+=======
+var _ = require('lodash');
+// const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
+// import { v4 as uuidv4 } from 'uuid'; // Ramdon UUID generator
+let fs = require('fs');
+const { uuid } = require('uuidv4');
+var esIndicesConfig = require('../elasticsearch/esIndicesConfig');
+var esclient = require('../elasticsearch/esclient');
+var localOSD = require('./osd/localstorage');
+var localSSD = require('./osd/localSDD');
+>>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/storage/storagemain.js
 
 const hsthumbnails = require('../thumbnail/HSThumbnails');
 
 // Use Busboy to parse form-data from the uploaded file content.
 const Busboy = require('busboy');
 
+<<<<<<< HEAD:storage/storagemain.js
 const Map = require('simple-hashtable');
+=======
+var Map = require('simple-hashtable');
+>>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/storage/storagemain.js
 
 const hashtable_buckets = new Map();
 const hashtable_OSDs = new Map();
@@ -43,14 +59,14 @@ var StorageMain = {
       });
 
     });
-    
+
   },
 
   loadBucketsTable: function(callback) {
     console.log("loadBucketsTable");
 
     fs.readFile("./config/objectstorecontainers.json", function(err, data){
-      var jsondata = JSON.parse(data);
+      let jsondata = JSON.parse(data);
       console.log("loadBucketsTable result: ", jsondata);
       jsondata.storagecontainers.map((bucketitem) => {
 
@@ -61,7 +77,6 @@ var StorageMain = {
       console.log("hashmap size is: ", hashtable_OSDs.size());
       callback();
       // console.log("hashmap for media1: ", hashtable_buckets.get("media1"));
-
     });
 
 
@@ -119,13 +134,10 @@ var StorageMain = {
     var containers = JSON.parse(JSON.stringify(hashtable_buckets));
     var devices = JSON.parse(JSON.stringify(hashtable_OSDs));
 
-    var settings = {
+    return {
       "containers": containers,
       "devices": devices
     };
-
-    return settings;
-
 
   },
 
@@ -152,7 +164,8 @@ var StorageMain = {
     // console.log("createNewFile number of osds in bucket: ", bucket.osds.length);
 
     //  First generate UUID for new file's ObjID
-    let objID = uuidv4();
+    let objID = uuid();
+    console.log("objID: ", objID);
     // var filedata = {id: objID, size: 0, status: 'staging', container: 'staging'};
     filedata['id'] = objID;
     filedata['size'] = 0;
@@ -162,7 +175,7 @@ var StorageMain = {
 
     // import date of the file
     var d = new Date();
-    d.setTimezone('UTC');
+    // d.setTimezone('UTC');
     // get current time in ISO8601 format which supports lexicographical sorting
     // Ref: https://en.wikipedia.org/wiki/ISO_8601
     filedata.import_date = d.toISOString();
@@ -186,17 +199,17 @@ var StorageMain = {
 
     console.log("OSD picked: ", bucketObj.osds[osdpicked]);
 
-    var osd = hashtable_OSDs.get( bucketObj.osds[osdpicked]);
+    const osd = hashtable_OSDs.get( bucketObj.osds[osdpicked]);
 
     console.log("osd: ", osd);
 
-    if(osd['device-type'] == 'localSDD') {
+    if(osd['device-type'] === 'localSDD') {
 
       // StorageMain.createFile_localSDD(osd, filedata, callback);
       localSSD.createFile(osd, bucketObj, filedata, callback);
 
     }
-    else if (osd['device-type'] == 'localHDD') {
+    else if (osd['device-type'] === 'localHDD') {
 
       localOSD.createFile(osd, bucketObj, filedata, callback);
 
@@ -226,20 +239,20 @@ var StorageMain = {
 
     let bucketObj = hashtable_buckets.get(bucket);
 
-    var bucket_index = "sm_objectstoreindex_" + bucket;
+    let bucket_index = "sm_objectstoreindex_" + bucket;
 
     if(query['size'] === "small") {
       // try thumbnails bucket
       // return the file if found in thumbnails
       // if not found then create thumbnail and then return it
-      var thumbnailmeta = hsthumbnails.lookup(objID);
+      let thumbnailmeta = hsthumbnails.lookup(objID);
 
       console.log("getFile: thumbnail cache entry for objID: ", thumbnailmeta);
 
-      if(thumbnailmeta != undefined) {
+      if(thumbnailmeta !== undefined) {
         // Thumbnail found in the cache
         console.log("getFile: Thumbnail found in the cache!!!");
-        var filestream = StorageMain.getFileFromPath(thumbnailmeta['path']);
+        let filestream = StorageMain.getFileFromPath(thumbnailmeta['path']);
         callback(undefined, filestream, thumbnailmeta);
 
       }
@@ -249,9 +262,9 @@ var StorageMain = {
         esclient.getItem(bucket_index, objID, {"match":{"id": objID}}, function(err, result){
           console.log("getFile: result size: ", result.size);
 
-          var filestream = StorageMain.getFileFromPath(result['path']);
-          
-          var thumbnailstream = hsthumbnails.getThumbnail(result["mimetype"], filestream, result['id']);
+          let filestream = StorageMain.getFileFromPath(result['path']);
+
+          let thumbnailstream = hsthumbnails.getThumbnail(result["mimetype"], filestream, result['id']);
 
           // The thumbnail doesnt exist so create one
           // Now save this thumbnail to the bucket for thumbnails same time this file read stream is returned to caller
@@ -265,19 +278,13 @@ var StorageMain = {
             result['size'] = resp['size'];
             result['mimetype'] = "image/jpeg";
 
-
             hsthumbnails.addthumbnail(objID, result);
 
-            var filestream1 = StorageMain.getFileFromPath(result['path']);
-
+            let filestream1 = StorageMain.getFileFromPath(result['path']);
             callback(undefined, filestream1 , result);
-
-
           });
         });
-
       }
-
     }
     else {
       // esclient.getItem(bucket_index, objID, {"match_all":{}}, function(err, result){
@@ -285,19 +292,13 @@ var StorageMain = {
         console.log("getFile: result: ", result['size']);
 
         if(result.hasOwnProperty('path')) {
-          var filestream = StorageMain.getFileFromPath(result['path']);
-
+          let filestream = StorageMain.getFileFromPath(result['path']);
           console.log("DDDDDDDD result: ". result);
-
           callback( undefined, filestream, result);
-
         }
         else {
-
           callback( {error: "nothing found"}, undefined, {});
-
         }
-
       });
     }
 
@@ -370,7 +371,7 @@ var StorageMain = {
     let bucketObj = hashtable_buckets.get(staging_bucket);
 
 
-    var busboy = new Busboy({headers: req.headers});
+    const busboy = new Busboy({headers: req.headers});
     var returnfiledata = {};
     var fieldData = context;
 
@@ -569,7 +570,7 @@ var StorageMain = {
       if(osd['device-type'] === "localSDD") {
         localSSD.deleteFile(osd, array[1]);
         var bucket_index = "sm_objectstoreindex" + "_" + container;
-        
+
         esclient.deleteItem(bucket_index, fileID, function(err, response){
 
         });
@@ -578,7 +579,7 @@ var StorageMain = {
       else if(osd['device-type'] === "localHDD") {
         localOSD.deleteFile(osd, array[1]);
         var bucket_index = "sm_objectstoreindex" + "_" + container;
-        
+
         esclient.deleteItem(bucket_index, fileID, function(err, response){
 
         });
@@ -701,46 +702,46 @@ var StorageMain = {
 
   // All the items will be moved from same source to single target
   bulkmove1: function(arrUpdateItems, sourcecontainer, targetcontainer, callback) {
-    
+
         console.log("bulkmove1: ", arrUpdateItems);
-    
+
         let promises = arrUpdateItems.map((item) => {
-    
+
           console.log("bulkmove1: ", item);
           return StorageMain.getFile(sourcecontainer, item.id, {}, function(err, filestream, metadata){
-    
+
             console.log("bulkmove1: err: ", err);
             console.log("bulkmove1: metadata: ", metadata);
-    
+
             metadata.container = targetcontainer;
             metadata.status = "online"; // this document will not be online
-    
+
             return StorageMain._addfile(targetcontainer, metadata, filestream, function(err, resp){
               // now delete the file from staging. Delete the file from storage and its metada from index
               StorageMain._deletefile(sourcecontainer, item.id, item.path, function(err, response){
 
               });
-    
+
             });
-    
+
           });
-    
+
         });
-    
+
         Promise.all(promises).then((results) => {
           console.log("bulkmove: promises results: ". results);
           callback();
-    
+
         });
-    
+
         // copy the file from source bucket to target bucket
-    
+
       },
-    
+
   getIndexForBucket: function(bucket) {
-    if(bucket == "staging") {
+    if(bucket === "staging") {
       return "sm_objectstoreindex_staging";
-    } else if(bucket == "media1"){
+    } else if(bucket === "media1"){
       return "sm_objectstoreindex_media1";
 
     }
