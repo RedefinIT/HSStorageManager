@@ -1,6 +1,6 @@
 Date: Dec 25 2016
 ##Image Thumbnail generator for node.js
-When displaying photos in the list view, the photos cannot be loaded to the browser using original resolution. This is causing severe performance issues.
+When displaying photos in the list view, the photos loaded to the browser using original resolution even in list-view. This is causing severe performance issues.
 To avoid this problem, the image thubnails should be generated for showing in the list view.
  
 Options exploring for node.js module for thumbnail generator:

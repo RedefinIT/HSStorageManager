@@ -4,8 +4,8 @@
 
 
 var _ = require('lodash');
-const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
-var time = require('time')(Date);
+// const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
+// var time = require('time')(Date);
 var fs = require('fs');
 
 var esIndicesConfig = require('./elasticsearch/esIndicesConfig');
@@ -17,7 +17,8 @@ var hsthumbnails = require('./thumbnail/HSThumbnails');
 // Use Busboy to parse form-data from the uploaded file content.
 var Busboy = require('busboy');
 
-var Map = require('hashtable');
+// var Map = require('hashtable');
+var Map = require('simple-hashtable');
 
 var staging_bucket = "staging";
 

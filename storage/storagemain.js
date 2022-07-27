@@ -3,26 +3,26 @@
  */
 
 
-var _ = require('lodash');
-const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
-var time = require('time')(Date);
-var fs = require('fs');
+const _ = require('lodash');
+const uuidv4 = require('uuid'); // Ramdon UUID generator
+// const time = require('time')(Date);
+const fs = require('fs');
 
-var esIndicesConfig = require('../elasticsearch/esIndicesConfig');
-var esclient = require('../elasticsearch/esclient');
-var localOSD = require('./osd/localstorage');
-var localSSD = require('./osd/localSDD');
+const esIndicesConfig = require('../elasticsearch/esIndicesConfig');
+const esclient = require('../elasticsearch/esclient');
+const localOSD = require('./osd/localstorage');
+const localSSD = require('./osd/localSDD');
 
-var hsthumbnails = require('../thumbnail/HSThumbnails');
+const hsthumbnails = require('../thumbnail/HSThumbnails');
 
 // Use Busboy to parse form-data from the uploaded file content.
-var Busboy = require('busboy');
+const Busboy = require('busboy');
 
-var Map = require('hashtable');
+const Map = require('simple-hashtable');
 
-var hashtable_buckets = new Map();
-var hashtable_OSDs = new Map();
-var staging_bucket = "staging";
+const hashtable_buckets = new Map();
+const hashtable_OSDs = new Map();
+const staging_bucket = "staging";
 
 var StorageMain = {
 
@@ -745,8 +745,6 @@ var StorageMain = {
 
     }
   }
-
-
 
 };
 

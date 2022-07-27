@@ -4,14 +4,15 @@
 
 
 
-var fs = require('fs');
-var sharp = require('sharp');
-var Map = require('hashtable');
-var pdfjslib = require('pdfjs-dist');
+const fs = require('fs');
+const sharp = require('sharp');
+// const Map = require('hashtable');
+const Map = require('simple-hashtable');
+const pdfjslib = require('pdfjs-dist');
 
-var storagemanager = require('../HStorageManager');
+const storagemanager = require('../HStorageManager');
 
-var hashtable_thumbnails = new Map();
+const hashtable_thumbnails = new Map();
 
 
 var HSThumbnails = {
@@ -48,10 +49,10 @@ var HSThumbnails = {
       // Get the first page.
       pdfDocument.getPage(1).then(function (page) {
         // Render the page on a Node canvas with 100% scale.
-        var viewport = page.getViewport(1.0);
-        var canvasFactory = new NodeCanvasFactory();
-        var canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
-        var renderContext = {
+        let viewport = page.getViewport(1.0);
+        let canvasFactory = new NodeCanvasFactory();
+        let canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
+        let renderContext = {
           canvasContext: canvasAndContext.context,
           viewport: viewport,
           canvasFactory: canvasFactory
@@ -59,7 +60,7 @@ var HSThumbnails = {
 
         page.render(renderContext).then(function () {
           // Convert the canvas to an image buffer.
-          var image = canvasAndContext.canvas.toBuffer();
+          let image = canvasAndContext.canvas.toBuffer();
           fs.writeFile('output.png', image, function (error) {
             if (error) {
               console.error('Error: ' + error);
