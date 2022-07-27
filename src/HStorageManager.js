@@ -4,13 +4,7 @@
 
 
 var _ = require('lodash');
-<<<<<<< HEAD:HStorageManager.js
-// const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
-// var time = require('time')(Date);
 var fs = require('fs');
-=======
->>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/HStorageManager.js
-
 var esIndicesConfig = require('./elasticsearch/esIndicesConfig');
 var esclient = require('./elasticsearch/esclient');
 var storagemain = require('./storage/storagemain');
@@ -20,12 +14,8 @@ var hsthumbnails = require('./thumbnail/HSThumbnails');
 // Use Busboy to parse form-data from the uploaded file content.
 var Busboy = require('busboy');
 
-<<<<<<< HEAD:HStorageManager.js
-// var Map = require('hashtable');
 var Map = require('simple-hashtable');
 
-=======
->>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/HStorageManager.js
 var staging_bucket = "staging";
 
 var HStorageManager = {

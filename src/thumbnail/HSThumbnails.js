@@ -6,23 +6,12 @@
 
 const fs = require('fs');
 const sharp = require('sharp');
-<<<<<<< HEAD:thumbnail/HSThumbnails.js
-// const Map = require('hashtable');
 const Map = require('simple-hashtable');
 const pdfjslib = require('pdfjs-dist');
 
 const storagemanager = require('../HStorageManager');
 
-const hashtable_thumbnails = new Map();
-=======
-const Map = require('simple-hashtable');
-// const pdfjslib = require('pdfjs-dist' );
-const pdfjslib = require('pdfjs-dist/legacy/build/pdf');
-
-// const storagemanager = require('../HStorageManager');
-
 let hashtable_thumbnails = new Map();
->>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/thumbnail/HSThumbnails.js
 
 
 var HSThumbnails = {

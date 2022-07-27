@@ -3,38 +3,22 @@
  */
 
 
-<<<<<<< HEAD:storage/storagemain.js
-const _ = require('lodash');
-const uuidv4 = require('uuid'); // Ramdon UUID generator
-// const time = require('time')(Date);
+// const _ = require('lodash');
 const fs = require('fs');
 
-const esIndicesConfig = require('../elasticsearch/esIndicesConfig');
-const esclient = require('../elasticsearch/esclient');
-const localOSD = require('./osd/localstorage');
-const localSSD = require('./osd/localSDD');
-=======
-var _ = require('lodash');
-// const uuidv4 = require('uuid/v4'); // Ramdon UUID generator
-// import { v4 as uuidv4 } from 'uuid'; // Ramdon UUID generator
-let fs = require('fs');
-const { uuid } = require('uuidv4');
+const { uuid } = require('uuid');
 var esIndicesConfig = require('../elasticsearch/esIndicesConfig');
 var esclient = require('../elasticsearch/esclient');
 var localOSD = require('./osd/localstorage');
 var localSSD = require('./osd/localSDD');
->>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/storage/storagemain.js
 
 const hsthumbnails = require('../thumbnail/HSThumbnails');
 
 // Use Busboy to parse form-data from the uploaded file content.
 const Busboy = require('busboy');
 
-<<<<<<< HEAD:storage/storagemain.js
 const Map = require('simple-hashtable');
-=======
-var Map = require('simple-hashtable');
->>>>>>> 2ea8c31db326290742a3e24f8e708d681a408f5c:src/storage/storagemain.js
+
 
 const hashtable_buckets = new Map();
 const hashtable_OSDs = new Map();
@@ -65,7 +49,7 @@ var StorageMain = {
   loadBucketsTable: function(callback) {
     console.log("loadBucketsTable");
 
-    fs.readFile("./config/objectstorecontainers.json", function(err, data){
+    fs.readFile("src/config/objectstorecontainers.json", function(err, data){
       let jsondata = JSON.parse(data);
       console.log("loadBucketsTable result: ", jsondata);
       jsondata.storagecontainers.map((bucketitem) => {
@@ -100,7 +84,7 @@ var StorageMain = {
   loadOSDTable: function(callback) {
     console.log("loadOSDTable");
 
-    fs.readFile("./config/objectstoredevices.json", function(err, data){
+    fs.readFile("src/config/objectstoredevices.json", function(err, data){
       var jsondata = JSON.parse(data);
       console.log("loadOSDTable result: ", jsondata);
       jsondata.storagedevices.map((osditem) => {
