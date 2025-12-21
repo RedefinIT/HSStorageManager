@@ -1,24 +1,37 @@
 /**
  * Created by govind on 7/24/16.
+ * Refactored for ZincSearch compatibility
  */
 
 'use strict';
-// This module provides the interface to the DB.
+// This module provides the interface to the search engine (ZincSearch or Elasticsearch).
 
-var elasticsearch = require('elasticsearch');
-var esIndicesConfig = require('./esIndicesConfig');
-//var deleteByQuery = require('elasticsearch-deletebyquery');
-var _ = require( 'lodash' );
+require('dotenv').config();
+const http = require('http');
+const https = require('https');
+const { URL } = require('url');
+const esIndicesConfig = require('./esIndicesConfig');
+const _ = require('lodash');
 
-var esPort = process.env.ES_PORT ? process.env.ES_PORT : '9200';
+// Configuration from environment variables
+const SEARCH_ENGINE = process.env.SEARCH_ENGINE || 'zincsearch';
+const ZINC_URL = process.env.ZINC_URL || 'http://localhost:4080';
+const ZINC_USER = process.env.ZINC_USER || 'admin';
+const ZINC_PASSWORD = process.env.ZINC_PASSWORD || 'Complexpass#123';
+const ES_PORT = process.env.ES_PORT || '9200';
 const MAX_RESULT_WINDOW = 10000;
 
-const es_client = elasticsearch.Client({
-  host: 'localhost:' + esPort,
-  log: 'info'
-});
+// Legacy Elasticsearch client (fallback)
+let es_client = null;
+if (SEARCH_ENGINE === 'elasticsearch') {
+  const elasticsearch = require('elasticsearch');
+  es_client = new elasticsearch.Client({
+    host: 'localhost:' + ES_PORT,
+    log: 'info'
+  });
+}
 
-
+// Exports
 exports.getFilterItems = getFilterItems;
 exports.getItems = getItems;
 exports.getItem = getItem;
@@ -28,290 +41,440 @@ exports.initIndices = initIndices;
 exports.addItem = addItem;
 exports.bulkupdate = bulkupdate;
 
-function createIndex(indexDef) {
-  es_client.create(indexDef, function(error, response) {
-    // ...
-  });
-}
+/**
+ * Helper: Makes HTTP request to ZincSearch
+ */
+function zincRequest(method, path, body = null) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(ZINC_URL);
+    const isHttps = urlObj.protocol === 'https:';
+    const client = isHttps ? https : http;
 
-function initIndices (allIndices, callback) {
+    const auth = Buffer.from(`${ZINC_USER}:${ZINC_PASSWORD}`).toString('base64');
 
-  let promises = _.map(allIndices, (indexSetting) => {
-
-    return es_client.indices.exists({
-      index: indexSetting.index
-    }).then((exists) => {
-      if (!exists) {
-        console.log("initIndices creating the index: ", indexSetting);
-        return es_client.indices.create(indexSetting);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: path,
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${auth}`
       }
-      console.log("returning undefined");
-      return undefined;
-    });
-  });
-
-
-  Promise.all(promises).then((result) => {
-    console.log("initIndices promise all: ", result);
-
-    // Now create the index for each container/bucket
-    let param = {
-      index: "sm_oscontainersindex"
-
     };
-    es_client.search(param, (err, resp) => {
-      if(err) {
 
-      } else if(!resp) {
-
-      } else {
-
-        console.log("containers: ", resp.hits.hits);
-        _.map(resp.hits.hits, (bucket) => {
-          console.log("bucket: ", bucket._source);
-
-          return es_client.indices.exists({
-            index: "sm_osdindex" + bucket._source.id,
-          }).then((exists) => {
-            if (!exists) {
-              console.log("initIndices creating the index: ", "sm_objectstoreindex_" + bucket._source.id);
-              var indexconfig = esIndicesConfig.storagemanagerIndices.sm_objectstoreindex;
-              indexconfig.index = "sm_objectstoreindex_" + bucket._source.id;
-              return es_client.indices.create(indexconfig);
-            }
-            console.log("returning undefined");
-            return undefined;
-          });
-
-        });
-
-      }
-    });
-
-    callback();
-  }).catch((err) => {
-    log.error('failed to create inices', err);
-    callback(err);
-  });
-}
-
-function getItem(index, id, query, callback) {
-
-  let param = {
-    index: index,
-    id: id,
-    body: {'query': query},
-
-  };
-
-  console.log("getItem: param@#@@#@#@#@#@#@#@#: ", param);
-
-  es_client.search(param, (err, resp) => {
-    if(err) {
-      console.log("some error with the query: ", err);
-      callback(err);
-    } else if(!resp) {
-      console.log("no error no response strange!");
-      callback({'message': 'no error no response strange!'});
-    } else {
-
-      console.log("getItem: param@@@@@@@@@@@@: ", param);
-
-      console.log("getItem: resp length: ",resp.hits.hits.length);
-
-      if(resp.hits.hits.length) {
-        callback(undefined, resp.hits.hits[0]['_source']);
-      }
-      else
-        callback({"error": "empty result!"}, {});
-
+    if (body) {
+      const bodyStr = JSON.stringify(body);
+      options.headers['Content-Length'] = Buffer.byteLength(bodyStr);
     }
-  });
 
-}
+    const req = client.request(options, (res) => {
+      let data = '';
 
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
 
-function getItems( index, params, query, callback1) {
-  console.log("getItems: index: ", index);
-  console.log("getItems: params: ", params);
-  console.log("getItems: query: ", query);
-
-  var indexName = index;
-
-  if(index === "digitallibrary")
-    indexName = "documents";
-
-  let body = (query == undefined)? {'query': {}} : {};
-
-
-  //TODO: The below code needs improvement
-  if(query.hasOwnProperty('query') && query.query.hasOwnProperty('camerafilter')) {
-    console.log("$%$%$$%$%$%$%$%$%$%$");
-    let q = {match: {['exif.Exif IFD0.Model'] : query.query.camerafilter}};
-    body.query = q;
-  } else if(query.hasOwnProperty('query')){
-    body.query = query.query;
-
-  }
-
-  // the search can take fields and their values for filtering the resultset
-  // The body section of the query statement 'param' will have filter conditons specified
-
-
-  let searchrequest = {
-    index: indexName,
-    from: (params.from === undefined) ? 0:params.from,
-    size: (params.size=== undefined) ? 1000:params.size,
-    body: body
-  };
-
-  console.log("getItems searchrequest: ", JSON.stringify(searchrequest));
-
-  return es_client.search( searchrequest,
-    ( err, resp ) => {
-      if ( err ) {
-        console.log("getItems: err: ",err);
-        callback1(err);
-      } else if ( !resp  ) {
-        console.log("getItems: err: ",err);
-        callback1(err);
-      } else {
-        // console.log("getItems: resp: ",resp);
-        console.log("getItems: resp: ",resp.hits.hits.length);
-        let result = {
-                      total: resp.hits.total,
-                      count: resp.hits.hits.length,
-                      items: resp.hits.hits.map((item) => {
-                        var returnItem = item._source;
-                        // console.log("returnItem: ", returnItem);
-                        returnItem['id'] = item._id;
-                        // console.log("returnItem: later ", returnItem);
-                        return item._source;
-                      })
-        };
-
-        callback1(undefined, result);
-      }
+      res.on('end', () => {
+        try {
+          const response = data ? JSON.parse(data) : {};
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(response);
+          } else {
+            reject(new Error(`ZincSearch error: ${res.statusCode} - ${data}`));
+          }
+        } catch (err) {
+          reject(new Error(`Failed to parse response: ${err.message}`));
+        }
+      });
     });
+
+    req.on('error', (err) => {
+      reject(err);
+    });
+
+    if (body) {
+      req.write(JSON.stringify(body));
+    }
+
+    req.end();
+  });
 }
 
 /**
- * Function that return all unique values of a field
- * Can be used to list filter items in the GUI
+ * Helper: Build search query with filters
  */
-function getFilterItems(index, field1, callback1) {
+function buildSearchQuery(query, params) {
+  const body = {};
 
-  var data = {
-    'index': index,
-    'body': {
-      'aggs': {
-        'result': {
-          'terms': {
-            'field': field1,
-            'order': {
-              '_term': 'asc'
+  // Handle camera filter (special case)
+  if (query?.query?.camerafilter) {
+    body.query = {
+      match: {
+        'exif.Exif IFD0.Model': query.query.camerafilter
+      }
+    };
+  } else if (query?.query) {
+    body.query = query.query;
+  } else {
+    body.query = { match_all: {} };
+  }
+
+  return body;
+}
+
+/**
+ * Create an index
+ */
+function createIndex(indexDef) {
+  if (SEARCH_ENGINE === 'zincsearch') {
+    const indexName = indexDef.index;
+    const mappings = indexDef.body?.mappings || {};
+
+    return zincRequest('POST', '/api/index', {
+      name: indexName,
+      storage_type: 'disk',
+      mappings: mappings
+    }).catch(err => {
+      console.error('Error creating index:', err);
+    });
+  } else {
+    // Legacy Elasticsearch
+    return new Promise((resolve, reject) => {
+      es_client.create(indexDef, (error, response) => {
+        if (error) reject(error);
+        else resolve(response);
+      });
+    });
+  }
+}
+
+/**
+ * Initialize all indices
+ */
+async function initIndices(allIndices, callback) {
+  try {
+    // Create initial indices
+    const promises = allIndices.map(async (indexSetting) => {
+      const indexName = indexSetting.index;
+
+      if (SEARCH_ENGINE === 'zincsearch') {
+        // Check if index exists by trying to get it
+        try {
+          await zincRequest('GET', `/api/index/${indexName}`);
+          console.log(`Index ${indexName} already exists`);
+          return null;
+        } catch (err) {
+          // Index doesn't exist, create it
+          console.log(`Creating index: ${indexName}`);
+          return createIndex(indexSetting);
+        }
+      } else {
+        // Legacy Elasticsearch
+        const exists = await es_client.indices.exists({ index: indexName });
+        if (!exists) {
+          console.log(`Creating index: ${indexName}`);
+          return es_client.indices.create(indexSetting);
+        }
+        return null;
+      }
+    });
+
+    await Promise.all(promises);
+    console.log('Initial indices created');
+
+    // Create container-specific indices
+    const containers = await getItems('sm_oscontainersindex', {}, {});
+
+    if (containers?.items) {
+      const containerPromises = containers.items.map(async (bucket) => {
+        const indexName = `sm_objectstoreindex_${bucket.id}`;
+
+        if (SEARCH_ENGINE === 'zincsearch') {
+          try {
+            await zincRequest('GET', `/api/index/${indexName}`);
+            return null;
+          } catch (err) {
+            console.log(`Creating container index: ${indexName}`);
+            const indexConfig = { ...esIndicesConfig.storagemanagerIndices.sm_objectstoreindex };
+            indexConfig.index = indexName;
+            return createIndex(indexConfig);
+          }
+        } else {
+          const exists = await es_client.indices.exists({ index: indexName });
+          if (!exists) {
+            const indexConfig = { ...esIndicesConfig.storagemanagerIndices.sm_objectstoreindex };
+            indexConfig.index = indexName;
+            return es_client.indices.create(indexConfig);
+          }
+          return null;
+        }
+      });
+
+      await Promise.all(containerPromises);
+    }
+
+    callback();
+  } catch (err) {
+    console.error('Failed to create indices:', err);
+    callback(err);
+  }
+}
+
+/**
+ * Get a single item by ID
+ */
+async function getItem(index, id, query, callback) {
+  try {
+    if (SEARCH_ENGINE === 'zincsearch') {
+      const searchBody = { query: query || { match_all: {} } };
+      const result = await zincRequest('POST', `/api/${index}/_search`, {
+        search_type: 'match',
+        query: {
+          term: { _id: id }
+        },
+        from: 0,
+        size: 1
+      });
+
+      if (result.hits?.hits?.length > 0) {
+        callback(undefined, result.hits.hits[0]._source);
+      } else {
+        callback({ error: 'empty result!' }, {});
+      }
+    } else {
+      // Legacy Elasticsearch
+      const param = {
+        index: index,
+        id: id,
+        body: { query: query }
+      };
+
+      es_client.search(param, (err, resp) => {
+        if (err) {
+          callback(err);
+        } else if (!resp || resp.hits.hits.length === 0) {
+          callback({ error: 'empty result!' }, {});
+        } else {
+          callback(undefined, resp.hits.hits[0]._source);
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Error in getItem:', err);
+    callback(err);
+  }
+}
+
+/**
+ * Get multiple items with query and pagination
+ */
+async function getItems(index, params, query, callback1) {
+  try {
+    // Handle index name mapping
+    const indexName = index === 'digitallibrary' ? 'documents' : index;
+
+    // Build search query
+    const searchBody = buildSearchQuery(query, params);
+
+    // Pagination parameters
+    const from = params.from || 0;
+    const size = params.size || 1000;
+
+    if (SEARCH_ENGINE === 'zincsearch') {
+      const result = await zincRequest('POST', `/api/${indexName}/_search`, {
+        ...searchBody,
+        from: from,
+        size: size
+      });
+
+      const formattedResult = {
+        total: result.hits?.total?.value || result.hits?.total || 0,
+        count: result.hits?.hits?.length || 0,
+        items: (result.hits?.hits || []).map((item) => {
+          const returnItem = item._source;
+          returnItem.id = item._id;
+          return returnItem;
+        })
+      };
+
+      callback1(undefined, formattedResult);
+    } else {
+      // Legacy Elasticsearch
+      const searchRequest = {
+        index: indexName,
+        from: from,
+        size: size,
+        body: searchBody
+      };
+
+      es_client.search(searchRequest, (err, resp) => {
+        if (err || !resp) {
+          callback1(err || new Error('No response from search'));
+        } else {
+          const result = {
+            total: resp.hits.total,
+            count: resp.hits.hits.length,
+            items: resp.hits.hits.map((item) => {
+              const returnItem = item._source;
+              returnItem.id = item._id;
+              return returnItem;
+            })
+          };
+          callback1(undefined, result);
+        }
+      });
+    }
+  } catch (err) {
+    console.error('Error in getItems:', err);
+    callback1(err);
+  }
+}
+
+/**
+ * Get aggregated filter values
+ */
+async function getFilterItems(index, field1, callback1) {
+  try {
+    if (SEARCH_ENGINE === 'zincsearch') {
+      // ZincSearch aggregations
+      const result = await zincRequest('POST', `/api/${index}/_search`, {
+        aggs: {
+          result: {
+            terms: {
+              field: field1,
+              order: { _term: 'asc' }
+            }
+          }
+        },
+        size: 0
+      });
+
+      const buckets = result.aggregations?.result?.buckets || [];
+      const filterValues = buckets.map(bucket => bucket.key);
+      callback1(filterValues);
+    } else {
+      // Legacy Elasticsearch
+      const data = {
+        index: index,
+        body: {
+          aggs: {
+            result: {
+              terms: {
+                field: field1,
+                order: { _term: 'asc' }
+              }
             }
           }
         }
-      }
+      };
+
+      es_client.search(data, (err, resp) => {
+        if (err) {
+          console.error('Error in getFilterItems:', err);
+          callback1(null);
+        } else {
+          const buckets = resp.aggregations.result.buckets;
+          const filterValues = buckets.map(bucket => bucket.key);
+          callback1(filterValues);
+        }
+      });
     }
-  };
-
-  es_client.search(data, function(err, resp) {
-
-    if (err == null) {
-      // RESULT IS LIKE [ { key: 'critical', doc_count: 33 },   { key: 'ok', doc_count: 2 } ]
-
-      var buckets = resp.aggregations.result.buckets;
-      // var res1 = [];
-      var res1 = [];
-
-      for (var i in buckets) {
-        console.log("each: ", JSON.stringify(buckets[i].key));
-        res1.push(buckets[i].key);
-        // res1.push({"status": buckets[i].key, "counts": buckets[i].doc_count});
-      }
-
-      callback1(res1);
-    } else {
-      log.warn("getAggregate() _client.search() : error = " + err);
-      callback1(null);
-    }
-
-  });
-
-}
-
-function addItem(index, data, id, callback1) {
-  console.log("addItem");
-
-  let indexDocument = {
-    index: index,
-    type: index,
-    id: id,
-    body: data
-  };
-
-  console.log("indexDocument: ", indexDocument);
-
-  es_client.index(indexDocument, function (error, response) {
-    console.log("addItem: error", error);
-    console.log("addItem: response", response);
-    callback1(error, response);
-  });
-
-}
-
-function stageNewFiles( id, filedata, callback1) {
-
-  console.log("esclient::stageNewFiles filedata: ", filedata);
-
-  let data = esIndicesConfig.hsIndices.stagedFiles;
-  data.id = id;
-  data.body = filedata;
-  data.body.status = "unstaged";
-
-  console.log("esclient::stageNewFiles data: ", data);
-
-  es_client.index(data, callback1);
-}
-
-
-function deleteItem(index, id, callback1) {
-  console.log("deleteItem: id:", id);
-
-  var indexDocument = {
-    index: index,
-    type: index,
-    id: id
-  };
-
-  if (id) {
-    console.log("deleteItem: before:");
-    es_client.delete(indexDocument, function (error, response) {
-      console.log("addItem: error", error);
-      console.log("addItem: response", response);
-      callback1(error, response);
-    });
+  } catch (err) {
+    console.error('Error in getFilterItems:', err);
+    callback1(null);
   }
-
 }
-
-function bulkupdate(arrUpdateItems, callback) {
-
-  // the bulk call option "refresh" is required to ensure query right after the update gets the updated data
-  es_client.bulk({'body': arrUpdateItems, 'refresh': "true"}, function(err, resp){
-
-    callback(err, resp);
-  });
-
-}
-
 
 /**
- * Get the client instance of Elasticsearch
- * @param void
+ * Add/Index a document
+ */
+async function addItem(index, data, id, callback1) {
+  try {
+    if (SEARCH_ENGINE === 'zincsearch') {
+      // ZincSearch uses PUT for indexing with ID
+      const result = await zincRequest('PUT', `/api/${index}/_doc/${id}`, data);
+      callback1(null, result);
+    } else {
+      // Legacy Elasticsearch
+      const indexDocument = {
+        index: index,
+        type: index,
+        id: id,
+        body: data
+      };
+
+      es_client.index(indexDocument, (error, response) => {
+        callback1(error, response);
+      });
+    }
+  } catch (err) {
+    console.error('Error in addItem:', err);
+    callback1(err);
+  }
+}
+
+/**
+ * Delete a document
+ */
+async function deleteItem(index, id, callback1) {
+  if (!id) {
+    callback1(new Error('ID is required'));
+    return;
+  }
+
+  try {
+    if (SEARCH_ENGINE === 'zincsearch') {
+      const result = await zincRequest('DELETE', `/api/${index}/_doc/${id}`);
+      callback1(null, result);
+    } else {
+      // Legacy Elasticsearch
+      const indexDocument = {
+        index: index,
+        type: index,
+        id: id
+      };
+
+      es_client.delete(indexDocument, (error, response) => {
+        callback1(error, response);
+      });
+    }
+  } catch (err) {
+    console.error('Error in deleteItem:', err);
+    callback1(err);
+  }
+}
+
+/**
+ * Bulk update documents
+ */
+async function bulkupdate(arrUpdateItems, callback) {
+  try {
+    if (SEARCH_ENGINE === 'zincsearch') {
+      // ZincSearch bulk API
+      const result = await zincRequest('POST', '/api/_bulk', {
+        operations: arrUpdateItems
+      });
+      callback(null, result);
+    } else {
+      // Legacy Elasticsearch
+      es_client.bulk({ body: arrUpdateItems, refresh: 'true' }, (err, resp) => {
+        callback(err, resp);
+      });
+    }
+  } catch (err) {
+    console.error('Error in bulkupdate:', err);
+    callback(err);
+  }
+}
+
+/**
+ * Get the client instance (for backward compatibility)
  */
 function getESClient() {
+  if (SEARCH_ENGINE === 'zincsearch') {
+    console.warn('ZincSearch mode: No Elasticsearch client available');
+    return null;
+  }
   return es_client;
 }
