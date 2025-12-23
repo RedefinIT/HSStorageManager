@@ -7,3 +7,8 @@ uploads
 
 # Environment variables
 .env
+
+# Google Drive credentials
+credentials/*.json
+!credentials/*.json.example
+!credentials/README.md

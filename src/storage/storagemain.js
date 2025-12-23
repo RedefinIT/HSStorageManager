@@ -11,6 +11,7 @@ var esIndicesConfig = require('../elasticsearch/esIndicesConfig');
 var esclient = require('../elasticsearch/esclient');
 var localOSD = require('./osd/localstorage');
 var localSSD = require('./osd/localSDD');
+var googleDrive = require('./osd/googledrive');
 
 const hsthumbnails = require('../thumbnail/HSThumbnails');
 
@@ -198,6 +199,11 @@ var StorageMain = {
       localOSD.createFile(osd, bucketObj, filedata, callback);
 
     }
+    else if (osd['device-type'] === 'cloud') {
+
+      googleDrive.createFile(osd, bucketObj, filedata, callback);
+
+    }
     else
     {
       console.log("createFile: ", osd['device-type'], "not valid osd!");
@@ -310,6 +316,10 @@ var StorageMain = {
       }
       else if(osd['device-type'] === "localHDD") {
         return localOSD.readFile(osd, array[1]);
+
+      }
+      else if(osd['device-type'] === "cloud") {
+        return googleDrive.readFile(osd, array[1]);
 
       }
       else {
@@ -562,6 +572,15 @@ var StorageMain = {
       }
       else if(osd['device-type'] === "localHDD") {
         localOSD.deleteFile(osd, array[1]);
+        var bucket_index = "sm_objectstoreindex" + "_" + container;
+
+        esclient.deleteItem(bucket_index, fileID, function(err, response){
+
+        });
+
+      }
+      else if(osd['device-type'] === "cloud") {
+        googleDrive.deleteFile(osd, array[1]);
         var bucket_index = "sm_objectstoreindex" + "_" + container;
 
         esclient.deleteItem(bucket_index, fileID, function(err, response){
