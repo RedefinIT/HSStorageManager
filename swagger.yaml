@@ -1,0 +1,717 @@
+openapi: 3.0.3
+info:
+  title: HSStorageManager API
+  description: |
+    Software-defined object storage server for HomeServer environments.
+
+    HSStorageManager provides a RESTful API for managing files as objects across
+    heterogeneous storage devices (SSD, HDD, Cloud) without RAID requirements.
+
+    ## Key Features
+    - Object-based storage with UUID identifiers
+    - Multi-tier storage (Cache, Primary, Secondary)
+    - Automatic thumbnail generation
+    - ZincSearch integration for metadata indexing
+    - Container-based organization
+
+    ## Documentation
+    - [Full Architecture Guide](https://github.com/RedefinIT/HSStorageManager/blob/main/ARCHITECTURE.md)
+    - [README](https://github.com/RedefinIT/HSStorageManager/blob/main/README.md)
+
+  version: 0.0.1
+  contact:
+    name: HSStorageManager
+    url: https://github.com/RedefinIT/HSStorageManager
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3040/rest
+    description: Local development server
+  - url: http://{host}:{port}/rest
+    description: Custom server
+    variables:
+      host:
+        default: localhost
+        description: Server hostname
+      port:
+        default: "3040"
+        description: Server port
+
+tags:
+  - name: File Operations
+    description: Upload, download, and manage files
+  - name: Metadata
+    description: Query and update object metadata
+  - name: Bulk Operations
+    description: Batch operations on multiple objects
+  - name: System
+    description: System configuration and settings
+
+paths:
+  /upload:
+    post:
+      tags:
+        - File Operations
+      summary: Upload a file
+      description: |
+        Upload files to the staging container. Supports both multipart form data
+        (from browsers) and REST binary uploads (from API clients).
+
+        **Upload Flow:**
+        1. File uploaded to staging container (SSD)
+        2. UUID generated for object
+        3. Metadata indexed in ZincSearch
+        4. Object ID returned to client
+
+      operationId: uploadFile
+      parameters:
+        - name: context
+          in: query
+          description: JSON metadata for the file (category, directory, tags, etc.)
+          required: false
+          schema:
+            type: string
+            example: '{"category":"photos","directory":"/2025/vacation"}'
+      requestBody:
+        description: File data (multipart form or binary stream)
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+              description: Binary file data
+      responses:
+        '303':
+          description: Upload successful (multipart)
+          headers:
+            Connection:
+              schema:
+                type: string
+                example: close
+            FileData:
+              schema:
+                type: object
+                description: File metadata
+        '200':
+          description: Upload successful (REST)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  FileID:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the uploaded object
+                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        '400':
+          description: Bad request
+        '500':
+          description: Server error
+
+  /file/{bucket}/{fileID}:
+    get:
+      tags:
+        - File Operations
+      summary: Download a file
+      description: |
+        Download a file by bucket and object ID. Supports thumbnail requests
+        via the `size` query parameter.
+
+        **Thumbnail Flow:**
+        1. Check in-memory cache
+        2. If not cached, fetch original and generate thumbnail
+        3. Save thumbnail to thumbnails container
+        4. Cache in memory for future requests
+        5. Stream to client
+
+      operationId: downloadFile
+      parameters:
+        - name: bucket
+          in: path
+          required: true
+          description: Container name (staging, media1, docs, etc.)
+          schema:
+            type: string
+            example: media1
+        - name: fileID
+          in: path
+          required: true
+          description: Object UUID
+          schema:
+            type: string
+            format: uuid
+            example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        - name: size
+          in: query
+          required: false
+          description: Request thumbnail (200px width)
+          schema:
+            type: string
+            enum:
+              - small
+            example: small
+      responses:
+        '200':
+          description: File stream
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                example: image/jpeg
+            Content-Length:
+              schema:
+                type: integer
+                example: 2048576
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            image/*:
+              schema:
+                type: string
+                format: binary
+            video/*:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: empty
+
+  /file:
+    post:
+      tags:
+        - File Operations
+      summary: Download file (POST method)
+      description: Alternative POST method for downloading files
+      operationId: downloadFilePost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  properties:
+                    bucket:
+                      type: string
+                      example: media1
+                    objid:
+                      type: string
+                      format: uuid
+                      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+      responses:
+        '200':
+          description: File stream
+          headers:
+            Content-Type:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /meta/{bucket}/{fileID}:
+    get:
+      tags:
+        - Metadata
+      summary: Get file metadata
+      description: |
+        Retrieve comprehensive metadata for an object from ZincSearch index.
+
+        **Metadata includes:**
+        - Object ID and path
+        - File size and MIME type
+        - Original filename
+        - Status (staging, online, archived)
+        - Import date
+        - Custom fields (category, directory, tags)
+
+      operationId: getMetadata
+      parameters:
+        - name: bucket
+          in: path
+          required: true
+          description: Container name
+          schema:
+            type: string
+            example: staging
+        - name: fileID
+          in: path
+          required: true
+          description: Object UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Object metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMetadata'
+        '404':
+          description: Object not found
+
+  /objects:
+    post:
+      tags:
+        - Metadata
+      summary: Query objects in a container
+      description: |
+        Search and filter objects within a container using ZincSearch queries.
+
+        **Supports:**
+        - Match queries (exact or fuzzy)
+        - Range queries (dates, sizes)
+        - Boolean queries (AND, OR, NOT)
+        - Aggregations
+        - Pagination
+
+      operationId: queryObjects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  properties:
+                    bucket:
+                      type: string
+                      description: Container to search
+                      example: media1
+                query:
+                  type: object
+                  description: ZincSearch query (Elasticsearch-compatible)
+                  example:
+                    match:
+                      category: vacation
+      responses:
+        '200':
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Total matching objects
+                        example: 150
+                      count:
+                        type: integer
+                        description: Objects in this response
+                        example: 50
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FileMetadata'
+
+  /bulkmove:
+    post:
+      tags:
+        - Bulk Operations
+      summary: Move files between containers
+      description: |
+        Move multiple files from various source containers to target containers.
+        Each item can specify different source and target containers.
+
+        **Process:**
+        1. Read file from source container
+        2. Write to target container
+        3. Update metadata (container, status)
+        4. Index in target container's ZincSearch index
+
+      operationId: bulkMove
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                    description: Object UUID
+                  sourcebucket:
+                    type: string
+                    description: Source container
+                    example: staging
+                  targetbucket:
+                    type: string
+                    description: Target container
+                    example: media1
+      responses:
+        '200':
+          description: Move completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: done
+
+  /bulkmove1:
+    post:
+      tags:
+        - Bulk Operations
+      summary: Move files from single source to single target
+      description: |
+        Move multiple files from one source container to one target container.
+        More efficient than bulkmove when all files share the same source and target.
+
+        **Process:**
+        1. For each file:
+           - Read from source
+           - Write to target
+           - Update metadata
+           - Delete from source
+        2. All operations run in parallel (Promise.all)
+
+      operationId: bulkMove1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  properties:
+                    sourcebucket:
+                      type: string
+                      example: staging
+                    targetbucket:
+                      type: string
+                      example: media1
+                    fileslist:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          path:
+                            type: string
+                            description: OSD path (osd_name:path)
+                            example: localsdd1:/staging/a1b2c3d4-e5f6-7890
+      responses:
+        '200':
+          description: Move completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: done
+
+  /bulkupdate:
+    post:
+      tags:
+        - Bulk Operations
+      summary: Update metadata for multiple objects
+      description: |
+        Batch update metadata fields for multiple objects.
+        Uses ZincSearch bulk API for efficient updates.
+
+        **Updatable fields:**
+        - category
+        - directory
+        - tags
+        - status
+        - Custom metadata fields
+
+      operationId: bulkUpdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  container:
+                    type: string
+                    description: Container where object is stored
+                  category:
+                    type: string
+                    example: vacation
+                  directory:
+                    type: string
+                    example: /2025/summer
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                    example: ["beach", "family"]
+                  status:
+                    type: string
+                    enum: [staging, online, archived]
+      responses:
+        '200':
+          description: Update completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: done
+
+  /settings:
+    post:
+      tags:
+        - System
+      summary: Get system configuration
+      description: |
+        Retrieve current system configuration including:
+        - All configured containers (buckets)
+        - All configured storage devices (OSDs)
+        - Container-to-OSD mappings
+
+        Useful for discovering available containers and storage topology.
+
+      operationId: getSettings
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  description: Optional parameters (currently unused)
+      responses:
+        '200':
+          description: System configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  containers:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/Container'
+                  devices:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/StorageDevice'
+
+components:
+  schemas:
+    FileMetadata:
+      type: object
+      description: Complete metadata for a stored object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique object identifier
+          example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        path:
+          type: string
+          description: OSD-encoded path (osd_name:relative_path)
+          example: localsdd1:/staging/a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        size:
+          type: integer
+          description: File size in bytes
+          example: 2048576
+        mimetype:
+          type: string
+          description: MIME type
+          example: image/jpeg
+        orgfilename:
+          type: string
+          description: Original filename from upload
+          example: vacation.jpg
+        encoding:
+          type: string
+          description: Transfer encoding
+          example: 7bit
+        status:
+          type: string
+          description: Object status
+          enum:
+            - staging
+            - online
+            - archived
+          example: staging
+        container:
+          type: string
+          description: Container where object is stored
+          example: staging
+        import_date:
+          type: string
+          format: date-time
+          description: Upload timestamp (ISO8601)
+          example: "2025-12-23T10:30:00.000Z"
+        category:
+          type: string
+          description: User-defined category
+          example: photos
+        directory:
+          type: string
+          description: User-defined directory path
+          example: /2025/vacation
+        params:
+          type: object
+          description: Additional custom metadata
+          additionalProperties: true
+
+    Container:
+      type: object
+      description: Storage container (bucket) configuration
+      properties:
+        name:
+          type: string
+          description: Container identifier
+          example: media1
+        description:
+          type: string
+          description: Human-readable description
+          example: For tier-1 user media files
+        policyJSON:
+          type: object
+          description: Future use - retention and lifecycle policies
+        osds:
+          type: array
+          description: List of OSD names serving this container
+          items:
+            type: string
+          example: ["localhdd1", "localhdd2"]
+        basepath:
+          type: string
+          description: Path prefix within OSDs
+          example: /media1
+        containertype:
+          type: string
+          description: Container classification
+          enum:
+            - staging
+            - media
+            - docs
+            - system
+            - cache
+            - thumbnails
+            - backup
+          example: media
+
+    StorageDevice:
+      type: object
+      description: Object Storage Device (OSD) configuration
+      properties:
+        name:
+          type: string
+          description: OSD identifier
+          example: localhdd1
+        protocol:
+          type: string
+          description: Access protocol
+          enum:
+            - file
+            - url
+            - nfs
+          example: file
+        device-id:
+          type: string
+          description: Device identifier (future use)
+        device-type:
+          type: string
+          description: Device type classification
+          enum:
+            - localHDD
+            - localSDD
+            - cloud
+            - USB-mass-storage
+          example: localHDD
+        credentials:
+          type: object
+          description: Authentication credentials for cloud storage
+          additionalProperties: true
+        permission:
+          type: string
+          description: Access permissions
+          enum:
+            - r
+            - w
+            - rw
+          example: rw
+        path:
+          type: string
+          description: Physical mount point or URL
+          example: /mnt/storage/hdd1
+
+  securitySchemes:
+    # Note: Current implementation has no authentication
+    # These are placeholders for future implementation
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key authentication (not implemented)
+
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token (not implemented)
+
+# No security applied currently - open API
+# security: []
+
+externalDocs:
+  description: Full architecture documentation
+  url: https://github.com/RedefinIT/HSStorageManager/blob/main/ARCHITECTURE.md
