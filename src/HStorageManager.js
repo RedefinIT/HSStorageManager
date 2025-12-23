@@ -186,6 +186,10 @@ var HStorageManager = {
   addContainer: function(containerData, callback) {
     storagemain.addContainer(containerData, callback);
   },
+
+  deleteFile: function(container, fileID, callback) {
+    storagemain.deleteFile(container, fileID, callback);
+  },
 };
 
 module.exports = HStorageManager;

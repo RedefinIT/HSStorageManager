@@ -209,6 +209,23 @@ app.post('/rest/container', function(req, resp){
 
 });
 
+app.delete('/rest/file/:bucket/:file', function(req, resp){
+
+  console.log("DELETE /rest/file/:bucket/:file params: ", req.params);
+
+  var container = req.params.bucket;
+  var fileID = req.params.file;
+
+  storagemanager.deleteFile(container, fileID, function(err, result){
+    if(err) {
+      resp.status(400).json({error: err.message});
+    } else {
+      resp.json({success: true, message: "File deleted successfully"});
+    }
+  });
+
+});
+
 
 /**
  * This is handler for upload files action from the UI
