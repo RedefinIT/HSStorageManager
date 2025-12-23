@@ -96,6 +96,10 @@ class HSStorageAPI {
     return `${this.client.defaults.baseURL}/file/${bucket}/${fileID}${sizeParam}`;
   }
 
+  async deleteFile(bucket: string, fileID: string): Promise<void> {
+    await this.client.delete(`/file/${bucket}/${fileID}`);
+  }
+
   // Query Operations
   async queryObjects(bucket: string, query: any = {}): Promise<QueryResult> {
     const response = await this.client.post('/objects', {

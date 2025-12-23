@@ -875,6 +875,29 @@ var StorageMain = {
         callback(null, newContainer);
       });
     });
+  },
+
+  deleteFile: function(container, fileID, callback) {
+    console.log("deleteFile: container: ", container, " fileID: ", fileID);
+
+    // Get file metadata to get the path
+    StorageMain.getObjectMeta(container, fileID, function(err, filemeta) {
+      if (err) {
+        return callback(err);
+      }
+
+      if (!filemeta || !filemeta.path) {
+        return callback(new Error("File not found or missing path"));
+      }
+
+      // Delete the file using the internal _deletefile function
+      StorageMain._deletefile(container, fileID, filemeta.path, function(err, response) {
+        if (err) {
+          return callback(err);
+        }
+        callback(null, { success: true, message: "File deleted successfully" });
+      });
+    });
   }
 
 };
