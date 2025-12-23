@@ -763,6 +763,59 @@ var StorageMain = {
       return "sm_objectstoreindex_media1";
 
     }
+  },
+
+  addDevice: function(deviceData, callback) {
+    console.log("addDevice: ", deviceData);
+
+    // Validate required fields
+    if (!deviceData.name || !deviceData.protocol || !deviceData['device-type'] || !deviceData.permission) {
+      return callback(new Error("Missing required fields: name, protocol, device-type, permission"));
+    }
+
+    // Check if device with this name already exists
+    if (hashtable_OSDs.get(deviceData.name)) {
+      return callback(new Error("Device with name '" + deviceData.name + "' already exists"));
+    }
+
+    // Create device object with all fields
+    var newDevice = {
+      name: deviceData.name,
+      protocol: deviceData.protocol,
+      'device-id': deviceData['device-id'] || '',
+      'device-type': deviceData['device-type'],
+      credentials: deviceData.credentials || {},
+      permission: deviceData.permission,
+      path: deviceData.path || '',
+      description: deviceData.description || ''
+    };
+
+    // Add to in-memory hashtable
+    hashtable_OSDs.put(newDevice.name, newDevice);
+
+    // Read current devices file
+    fs.readFile("src/config/objectstoredevices.json", 'utf8', function(err, data) {
+      if (err) {
+        return callback(err);
+      }
+
+      var jsondata = JSON.parse(data);
+
+      // Add new device to the array
+      jsondata.storagedevices.push(newDevice);
+
+      // Write back to file
+      fs.writeFile("src/config/objectstoredevices.json", JSON.stringify(jsondata, null, 2), 'utf8', function(err) {
+        if (err) {
+          // Remove from hashtable if file write fails
+          hashtable_OSDs.remove(newDevice.name);
+          return callback(err);
+        }
+
+        console.log("Device added successfully: ", newDevice.name);
+        callback(null, newDevice);
+      });
+    });
   }
 
 };

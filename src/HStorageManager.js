@@ -178,6 +178,10 @@ var HStorageManager = {
   bulkmove1: function(arrUpdateItems, sourcecontainer, targetcontainer, callback) {
     storagemain.bulkmove1(arrUpdateItems, sourcecontainer, targetcontainer, callback);
   },
+
+  addDevice: function(deviceData, callback) {
+    storagemain.addDevice(deviceData, callback);
+  },
 };
 
 module.exports = HStorageManager;

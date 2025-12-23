@@ -177,6 +177,22 @@ app.post('/rest/settings', function(req, resp){
 
 });
 
+app.post('/rest/device', function(req, resp){
+
+  console.log("POST /rest/device req.body: ", req.body);
+
+  var deviceData = req.body;
+
+  storagemanager.addDevice(deviceData, function(err, newDevice){
+    if(err) {
+      resp.status(400).json({error: err.message});
+    } else {
+      resp.json({success: true, device: newDevice});
+    }
+  });
+
+});
+
 
 /**
  * This is handler for upload files action from the UI
