@@ -4,3 +4,6 @@ dist
 semantic
 uploads
 .idea
+
+# Environment variables
+.env
