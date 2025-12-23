@@ -182,6 +182,10 @@ var HStorageManager = {
   addDevice: function(deviceData, callback) {
     storagemain.addDevice(deviceData, callback);
   },
+
+  addContainer: function(containerData, callback) {
+    storagemain.addContainer(containerData, callback);
+  },
 };
 
 module.exports = HStorageManager;
