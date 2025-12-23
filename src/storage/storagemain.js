@@ -116,8 +116,23 @@ var StorageMain = {
 
   getSettings: function() {
 
-    var containers = JSON.parse(JSON.stringify(hashtable_buckets));
-    var devices = JSON.parse(JSON.stringify(hashtable_OSDs));
+    // Convert hashtables to plain objects to avoid circular reference errors
+    var containers = {};
+    var devices = {};
+
+    // Convert hashtable_buckets to plain object
+    var bucketKeys = hashtable_buckets.keys();
+    for (var i = 0; i < bucketKeys.length; i++) {
+      var key = bucketKeys[i];
+      containers[key] = hashtable_buckets.get(key);
+    }
+
+    // Convert hashtable_OSDs to plain object
+    var deviceKeys = hashtable_OSDs.keys();
+    for (var j = 0; j < deviceKeys.length; j++) {
+      var key = deviceKeys[j];
+      devices[key] = hashtable_OSDs.get(key);
+    }
 
     return {
       "containers": containers,
