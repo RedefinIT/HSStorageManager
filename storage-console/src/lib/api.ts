@@ -127,6 +127,15 @@ class HSStorageAPI {
   async bulkUpdate(updates: Array<Partial<FileMetadata> & { id: string; container: string }>): Promise<void> {
     await this.client.post('/bulkupdate', updates);
   }
+
+  // Device Management
+  async createDevice(deviceData: Omit<StorageDevice, 'device-id' | 'credentials'> & {
+    'device-id'?: string;
+    credentials?: Record<string, any>;
+  }): Promise<StorageDevice> {
+    const response = await this.client.post('/device', deviceData);
+    return response.data.device;
+  }
 }
 
 export const api = new HSStorageAPI();
