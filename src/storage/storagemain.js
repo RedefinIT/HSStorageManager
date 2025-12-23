@@ -816,6 +816,65 @@ var StorageMain = {
         callback(null, newDevice);
       });
     });
+  },
+
+  addContainer: function(containerData, callback) {
+    console.log("addContainer: ", containerData);
+
+    // Validate required fields
+    if (!containerData.name || !containerData.osds || !Array.isArray(containerData.osds) || containerData.osds.length === 0) {
+      return callback(new Error("Missing required fields: name, osds (must be a non-empty array)"));
+    }
+
+    // Check if container with this name already exists
+    if (hashtable_buckets.get(containerData.name)) {
+      return callback(new Error("Container with name '" + containerData.name + "' already exists"));
+    }
+
+    // Validate that all OSDs exist
+    for (var i = 0; i < containerData.osds.length; i++) {
+      var osdName = containerData.osds[i];
+      if (!hashtable_OSDs.get(osdName)) {
+        return callback(new Error("Storage device '" + osdName + "' does not exist"));
+      }
+    }
+
+    // Create container object with all fields
+    var newContainer = {
+      name: containerData.name,
+      description: containerData.description || '',
+      policyJSON: containerData.policyJSON || {},
+      osds: containerData.osds,
+      basepath: containerData.basepath || '/' + containerData.name,
+      containertype: containerData.containertype || 'general'
+    };
+
+    // Add to in-memory hashtable
+    hashtable_buckets.put(newContainer.name, newContainer);
+
+    // Read current containers file
+    fs.readFile("src/config/objectstorecontainers.json", 'utf8', function(err, data) {
+      if (err) {
+        return callback(err);
+      }
+
+      var jsondata = JSON.parse(data);
+
+      // Add new container to the array
+      jsondata.storagecontainers.push(newContainer);
+
+      // Write back to file
+      fs.writeFile("src/config/objectstorecontainers.json", JSON.stringify(jsondata, null, 2), 'utf8', function(err) {
+        if (err) {
+          // Remove from hashtable if file write fails
+          hashtable_buckets.remove(newContainer.name);
+          return callback(err);
+        }
+
+        console.log("Container added successfully: ", newContainer.name);
+        callback(null, newContainer);
+      });
+    });
   }
 
 };

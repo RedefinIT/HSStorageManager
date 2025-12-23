@@ -136,6 +136,14 @@ class HSStorageAPI {
     const response = await this.client.post('/device', deviceData);
     return response.data.device;
   }
+
+  // Container Management
+  async createContainer(containerData: Omit<Container, 'policyJSON'> & {
+    policyJSON?: Record<string, any>;
+  }): Promise<Container> {
+    const response = await this.client.post('/container', containerData);
+    return response.data.container;
+  }
 }
 
 export const api = new HSStorageAPI();

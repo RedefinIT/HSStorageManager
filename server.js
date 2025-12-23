@@ -193,6 +193,22 @@ app.post('/rest/device', function(req, resp){
 
 });
 
+app.post('/rest/container', function(req, resp){
+
+  console.log("POST /rest/container req.body: ", req.body);
+
+  var containerData = req.body;
+
+  storagemanager.addContainer(containerData, function(err, newContainer){
+    if(err) {
+      resp.status(400).json({error: err.message});
+    } else {
+      resp.json({success: true, container: newContainer});
+    }
+  });
+
+});
+
 
 /**
  * This is handler for upload files action from the UI
